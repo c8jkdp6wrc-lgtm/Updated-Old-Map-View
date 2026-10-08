@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Recon Board — Shared GTA Map</title>
+    <meta name="description" content="A shared, live map for marking locations and shading searched areas across Los Santos." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter+Tight:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><path d='M16 2c-5.5 0-10 4.3-10 9.7C6 19 16 30 16 30s10-11 10-18.3C26 6.3 21.5 2 16 2z' fill='%23f5b301'/><circle cx='16' cy='12' r='4' fill='%230b0f14'/></svg>" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <div>
+          <h1>Recon Board</h1>
+          <p>Shared Los Santos search map</p>
+        </div>
+      </div>
+
+      <section class="legend" aria-label="Ping categories">
+        <span class="legend-label">Key</span>
+        <div id="legend-items" class="legend-items"></div>
+        <button id="add-category" class="chip chip-add" type="button">+ Add category</button>
+      </section>
+
+      <div id="sync" class="sync" data-state="connecting">
+        <span class="sync-dot"></span><span id="sync-text">Connecting…</span>
+      </div>
+    </header>
+
+    <main class="map-wrap">
+      <div id="viewport" class="viewport" data-mode="navigate">
+        <div id="stage" class="stage">
+          <img id="map-img" alt="Map of Los Santos and Blaine County" draggable="false"
+            src="https://r2.fivemanage.com/5wGi5zx33QLzqLkxqL7ZI/Gemini_Generated_Image_8xr7wn8xr7wn8xr7.jpg" />
+          <svg id="shade-layer" class="shade-layer" xmlns="http://www.w3.org/2000/svg"></svg>
+        </div>
+        <div id="pin-layer" class="pin-layer"></div>
+        <div id="loading" class="loading">Loading map…</div>
+      </div>
+
+      <nav class="toolbox" aria-label="Map tools">
+        <button class="tool active" data-tool="navigate" type="button" title="Move around (drag)">
+          <svg viewBox="0 0 24 24"><path d="M12 2v20M2 12h20M12 2l-3 3M12 2l3 3M12 22l-3-3M12 22l3-3M2 12l3-3M2 12l3 3M22 12l-3-3M22 12l-3 3"/></svg>
+          <span>Move</span>
+        </button>
+        <button class="tool" data-tool="ping" type="button" title="Click the map to drop a ping">
+          <svg viewBox="0 0 24 24"><path d="M12 22s7-7.6 7-13a7 7 0 0 0-14 0c0 5.4 7 13 7 13z"/><circle cx="12" cy="9" r="2.5"/></svg>
+          <span>Add ping</span>
+        </button>
+        <button class="tool" data-tool="shade" type="button" title="Hold left mouse to shade">
+          <svg viewBox="0 0 24 24"><path d="M3 21c3 0 4-2 4-4s1.5-3 3-3 3 1.5 3 3-2 4-5 4H3z"/><path d="M10 14 20 4l-2-2L8 12"/></svg>
+          <span>Add shading</span>
+        </button>
+        <button class="tool" data-tool="erase" type="button" title="Click a shaded stroke to remove it">
+          <svg viewBox="0 0 24 24"><path d="m7 21-4-4L15 5l6 6-10 10H7z"/><path d="M21 21H11M9 11l6 6"/></svg>
+          <span>Erase</span>
+        </button>
+
+        <div id="shade-options" class="shade-options" hidden>
+          <span class="opt-label">Shade color</span>
+          <div id="shade-swatches" class="swatches"></div>
+          <label class="opt-label" for="brush">Brush <output id="brush-out">48</output>px</label>
+          <input id="brush" type="range" min="12" max="140" value="48" />
+          <button id="undo-stroke" class="ghost-btn" type="button" disabled>Undo my last stroke</button>
+        </div>
+      </nav>
+
+      <div class="zoom">
+        <button id="zoom-in" type="button" aria-label="Zoom in">+</button>
+        <button id="zoom-out" type="button" aria-label="Zoom out">−</button>
+        <button id="zoom-fit" type="button" aria-label="Fit map" title="Fit map">⤢</button>
+        <button id="toggle-labels" type="button" aria-pressed="true" title="Toggle ping labels">Aa</button>
+      </div>
+
+      <div id="hint" class="hint">Scroll to zoom · drag to move</div>
+      <div id="toast" class="toast" role="status"></div>
+    </main>
+
+    <dialog id="ping-dialog" class="dialog">
+      <form method="dialog" id="ping-form">
+        <h2>New ping</h2>
+        <label class="field">
+          <span>Name</span>
+          <input id="ping-name" name="name" maxlength="80" placeholder="e.g. Meth lab entrance" required autocomplete="off" />
+        </label>
+        <fieldset class="field">
+          <legend>Color / category</legend>
+          <div id="ping-categories" class="cat-options"></div>
+        </fieldset>
+        <div class="actions">
+          <button type="button" class="ghost-btn" data-close>Cancel</button>
+          <button type="submit" class="primary-btn">Drop ping</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="category-dialog" class="dialog">
+      <form method="dialog" id="category-form">
+        <h2>Add color category</h2>
+        <p class="dialog-sub">Anyone can add a category. It appears in the key for everyone.</p>
+        <label class="field">
+          <span>Tag name <em>(required)</em></span>
+          <input id="category-name" maxlength="40" placeholder="e.g. Weapons" required autocomplete="off" />
+        </label>
+        <div class="field">
+          <span>Color</span>
+          <div class="color-row">
+            <input id="category-color" type="color" value="#22c55e" />
+            <div id="category-presets" class="swatches"></div>
+          </div>
+        </div>
+        <p id="category-error" class="form-error" hidden></p>
+        <div class="actions">
+          <button type="button" class="ghost-btn" data-close>Cancel</button>
+          <button type="submit" class="primary-btn">Add category</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div id="ping-card" class="ping-card" hidden>
+      <div class="ping-card-head">
+        <span id="ping-card-dot" class="dot"></span>
+        <strong id="ping-card-name"></strong>
+      </div>
+      <p id="ping-card-meta"></p>
+      <button id="ping-card-delete" type="button" class="danger-btn">Remove ping</button>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
